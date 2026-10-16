@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Controle de Despesas</title>
+    <link rel="stylesheet" href="css/estilo.css">
+    <script src="js/app.js"></script>
+    <script defer src="js/alpine.min.js"></script>
+</head>
+<body>
+    <main x-data="healthCheck()">
+        <h1>Controle de Despesas</h1>
+        <button type="button" @click="verificar()" :disabled="carregando">
+            <span x-text="carregando ? 'Consultando...' : 'Verificar /health'"></span>
+        </button>
+        <pre x-show="resposta" x-text="resposta"></pre>
+        <p class="erro" x-show="erro" x-text="erro"></p>
+    </main>
+</body>
+</html>
