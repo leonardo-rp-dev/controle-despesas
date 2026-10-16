@@ -15,6 +15,9 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -22,6 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import br.com.despesas.dto.DespesaRequest;
 import br.com.despesas.dto.DespesaResponse;
+import br.com.despesas.dto.TotalResponse;
 import br.com.despesas.exception.NaoEncontradoException;
 import br.com.despesas.exception.ValidacaoException;
 import br.com.despesas.model.Despesa;
@@ -225,6 +229,87 @@ class DespesaServiceTest {
                 .isInstanceOf(NaoEncontradoException.class)
                 .hasMessage("Despesa não encontrada");
         verify(repository, never()).delete(any(Despesa.class));
+    }
+
+    @Test
+    void listaComMesUsaConsultaPorPeriodoDoPrimeiroAoUltimoDia() {
+        Despesa despesa = despesa(1L, "Mercado", 1234L, LocalDate.of(2026, 10, 15));
+        when(repository.findByDataBetweenOrderByDataDescIdDesc(LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31)))
+                .thenReturn(List.of(despesa));
+
+        List<DespesaResponse> lista = service.listar("2026-10");
+
+        assertThat(lista).extracting(DespesaResponse::id).containsExactly(1L);
+        verify(repository, never()).findAllByOrderByDataDescIdDesc();
+    }
+
+    @Test
+    void listaComMesDeFevereiroBissextoVaiAteODia29() {
+        when(repository.findByDataBetweenOrderByDataDescIdDesc(LocalDate.of(2028, 2, 1), LocalDate.of(2028, 2, 29)))
+                .thenReturn(List.of());
+
+        assertThat(service.listar("2028-02")).isEmpty();
+
+        verify(repository).findByDataBetweenOrderByDataDescIdDesc(LocalDate.of(2028, 2, 1), LocalDate.of(2028, 2, 29));
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = "   ")
+    void listaSemMesUsaConsultaDeTodasAsDespesas(String mes) {
+        when(repository.findAllByOrderByDataDescIdDesc()).thenReturn(List.of());
+
+        assertThat(service.listar(mes)).isEmpty();
+
+        verify(repository, never()).findByDataBetweenOrderByDataDescIdDesc(any(), any());
+    }
+
+    @Test
+    void totalComMesConverteSomaDeCentavosParaReais() {
+        when(repository.somarValorCentavosPorPeriodo(LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31)))
+                .thenReturn(1234L);
+
+        TotalResponse total = service.total("2026-10");
+
+        assertThat(total.total()).isEqualTo(new BigDecimal("12.34"));
+        verify(repository, never()).somarValorCentavos();
+    }
+
+    @ParameterizedTest
+    @NullAndEmptySource
+    @ValueSource(strings = "   ")
+    void totalSemMesSomaTodasAsDespesas(String mes) {
+        when(repository.somarValorCentavos()).thenReturn(150000L);
+
+        TotalResponse total = service.total(mes);
+
+        assertThat(total.total()).isEqualTo(new BigDecimal("1500.00"));
+        verify(repository, never()).somarValorCentavosPorPeriodo(any(), any());
+    }
+
+    @Test
+    void totalSemDespesasDevolveZeroComDuasCasas() {
+        when(repository.somarValorCentavos()).thenReturn(0L);
+
+        assertThat(service.total(null).total()).isEqualTo(new BigDecimal("0.00"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"2026-13", "10/2026", "abc", "2026-1", "2026-10-15"})
+    void listarRejeitaMesInvalido(String mes) {
+        assertThatThrownBy(() -> service.listar(mes))
+                .isInstanceOf(ValidacaoException.class)
+                .hasMessage("Mês inválido. Use o formato yyyy-MM");
+        verifyNoInteractions(repository);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"2026-13", "10/2026", "abc", "2026-1", "2026-10-15"})
+    void totalRejeitaMesInvalido(String mes) {
+        assertThatThrownBy(() -> service.total(mes))
+                .isInstanceOf(ValidacaoException.class)
+                .hasMessage("Mês inválido. Use o formato yyyy-MM");
+        verifyNoInteractions(repository);
     }
 
     private void assertAtualizacaoRejeitada(DespesaRequest request, String mensagem) {
