@@ -9,13 +9,48 @@
     <script defer src="js/alpine.min.js"></script>
 </head>
 <body>
-    <main x-data="healthCheck()">
+    <main x-data="despesas()" x-init="carregar()">
         <h1>Controle de Despesas</h1>
-        <button type="button" @click="verificar()" :disabled="carregando">
-            <span x-text="carregando ? 'Consultando...' : 'Verificar /health'"></span>
-        </button>
-        <pre x-show="resposta" x-text="resposta"></pre>
-        <p class="erro" x-show="erro" x-text="erro"></p>
+
+        <section aria-labelledby="titulo-cadastro">
+            <h2 id="titulo-cadastro">Nova despesa</h2>
+            <form @submit.prevent="salvar()" novalidate>
+                <label>
+                    Descrição
+                    <input type="text" x-model="form.descricao" autocomplete="off">
+                </label>
+                <label>
+                    Valor (R$)
+                    <input type="text" inputmode="decimal" placeholder="12,34" x-model="form.valor" autocomplete="off">
+                </label>
+                <label>
+                    Data
+                    <input type="date" x-model="form.data">
+                </label>
+                <button type="submit" :disabled="salvando">
+                    <span x-text="salvando ? 'Salvando...' : 'Salvar'"></span>
+                </button>
+            </form>
+            <p class="erro" role="alert" x-show="erro" x-text="erro"></p>
+        </section>
+
+        <section aria-labelledby="titulo-lista">
+            <h2 id="titulo-lista">Despesas</h2>
+            <p x-show="carregando">Carregando...</p>
+            <p x-show="!carregando && lista.length === 0 && !erroLista">Nenhuma despesa cadastrada.</p>
+            <p class="erro" role="alert" x-show="erroLista" x-text="erroLista"></p>
+            <ul class="lista">
+                <template x-for="d in lista" :key="d.id">
+                    <li>
+                        <div class="item-topo">
+                            <span class="descricao" x-text="d.descricao"></span>
+                            <strong x-text="formatarValor(d.valor)"></strong>
+                        </div>
+                        <time x-text="formatarData(d.data)"></time>
+                    </li>
+                </template>
+            </ul>
+        </section>
     </main>
 </body>
 </html>
