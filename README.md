@@ -100,6 +100,20 @@ $env:MAVEN_OPTS = "-Djavax.net.ssl.trustStoreType=Windows-ROOT"
 .\mvnw spring-boot:run
 ```
 
+## Uso com Make
+
+O `Makefile` é um atalho para os comandos do wrapper. Usa `mvnw.cmd` quando a variável `OS` é `Windows_NT` e `./mvnw` nos demais sistemas.
+
+| Comando | O que faz |
+|---|---|
+| `make install` | Baixa as dependências e compila, sem rodar os testes (`clean package -DskipTests`) |
+| `make run` | Inicia a aplicação (`spring-boot:run`) em http://localhost:8080 |
+| `make test` | Executa todos os testes (`verify`) |
+
+`make` sem argumentos lista os comandos. Se o Maven falhar, o Makefile lembra de conferir o JDK 21 e o `JAVA_HOME`.
+
+O Make não vem instalado no Windows, nem no Git Bash. Instale-o à parte ou use direto os comandos da seção Execução.
+
 ## Testes
 
 ```bash
@@ -244,6 +258,7 @@ controle-despesas/
 - A interface web não tem teste automatizado. O comportamento da tela (formatação, layout a partir de 360 px, mensagens de erro) depende de verificação manual no navegador.
 - A execução foi verificada apenas no Windows. Linux e macOS não foram testados.
 - O `main` da aplicação, que cria `~/.despesas`, não é coberto por teste automatizado.
+- O `Makefile` ainda não foi executado com o Make: só os comandos que ele roda foram validados.
 
 ## Próximos passos
 
