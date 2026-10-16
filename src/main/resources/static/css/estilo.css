@@ -61,6 +61,40 @@ button:disabled {
     cursor: wait;
 }
 
+button.secundario {
+    background: #e4e7eb;
+    color: #1f2933;
+}
+
+button.perigo {
+    background: #b91c1c;
+}
+
+.botoes,
+.acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.acoes button {
+    padding: 0.3rem 0.8rem;
+    font-size: 0.85rem;
+}
+
+.item-base {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.4rem;
+}
+
+.lista li.em-edicao {
+    outline: 2px solid #2563eb;
+}
+
 .erro {
     color: #b91c1c;
 }

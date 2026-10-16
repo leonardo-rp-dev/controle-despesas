@@ -13,7 +13,7 @@
         <h1>Controle de Despesas</h1>
 
         <section aria-labelledby="titulo-cadastro">
-            <h2 id="titulo-cadastro">Nova despesa</h2>
+            <h2 id="titulo-cadastro" x-text="editandoId !== null ? 'Editar despesa' : 'Nova despesa'"></h2>
             <form @submit.prevent="salvar()" novalidate>
                 <label>
                     Descrição
@@ -27,9 +27,14 @@
                     Data
                     <input type="date" x-model="form.data">
                 </label>
-                <button type="submit" :disabled="salvando">
-                    <span x-text="salvando ? 'Salvando...' : 'Salvar'"></span>
-                </button>
+                <div class="botoes">
+                    <button type="submit" :disabled="salvando">
+                        <span x-text="salvando ? 'Salvando...' : (editandoId !== null ? 'Atualizar' : 'Salvar')"></span>
+                    </button>
+                    <button type="button" class="secundario" x-show="editandoId !== null" @click="cancelar()" :disabled="salvando">
+                        Cancelar
+                    </button>
+                </div>
             </form>
             <p class="erro" role="alert" x-show="erro" x-text="erro"></p>
         </section>
@@ -41,12 +46,18 @@
             <p class="erro" role="alert" x-show="erroLista" x-text="erroLista"></p>
             <ul class="lista">
                 <template x-for="d in lista" :key="d.id">
-                    <li>
+                    <li :class="{ 'em-edicao': d.id === editandoId }">
                         <div class="item-topo">
                             <span class="descricao" x-text="d.descricao"></span>
                             <strong x-text="formatarValor(d.valor)"></strong>
                         </div>
-                        <time x-text="formatarData(d.data)"></time>
+                        <div class="item-base">
+                            <time x-text="formatarData(d.data)"></time>
+                            <div class="acoes">
+                                <button type="button" class="secundario" @click="editar(d)" :disabled="salvando || excluindoId !== null">Editar</button>
+                                <button type="button" class="perigo" @click="excluir(d)" :disabled="salvando || excluindoId !== null">Excluir</button>
+                            </div>
+                        </div>
                     </li>
                 </template>
             </ul>
