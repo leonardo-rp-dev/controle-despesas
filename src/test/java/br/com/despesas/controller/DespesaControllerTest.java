@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -249,6 +250,89 @@ class DespesaControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.mensagem").value("Mês inválido. Use o formato yyyy-MM"));
+    }
+
+    @Test
+    void putSemCorpoRetorna400SemChamarOService() throws Exception {
+        mockMvc.perform(put("/api/despesas/5").contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.mensagem").value("Corpo da requisição inválido ou ausente"));
+
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void putComDataForaDoFormatoIsoRetorna400SemChamarOService() throws Exception {
+        mockMvc.perform(put("/api/despesas/5")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"descricao\":\"Feira\",\"valor\":1,\"data\":\"12/10/2026\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.mensagem").value("Data inválida. Use o formato yyyy-MM-dd"));
+
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void putComIdNaoNumericoRetorna400SemChamarOService() throws Exception {
+        mockMvc.perform(put("/api/despesas/abc")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"descricao\":\"Feira\",\"valor\":1,\"data\":\"2026-10-12\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.mensagem").value("Identificador inválido"));
+
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void postComContentTypeNaoSuportadoRetorna415NoFormatoErroResposta() throws Exception {
+        mockMvc.perform(post("/api/despesas")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("Mercado"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.status").value(415))
+                .andExpect(jsonPath("$.mensagem").isNotEmpty())
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void metodoNaoSuportadoNaColecaoRetorna405NoFormatoErroResposta() throws Exception {
+        mockMvc.perform(patch("/api/despesas"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.status").value(405))
+                .andExpect(jsonPath("$.mensagem").isNotEmpty())
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+    }
+
+    @Test
+    void getPorIdNaoExisteERetorna405() throws Exception {
+        mockMvc.perform(get("/api/despesas/5"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.status").value(405));
+
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void totalComMetodoNaoSuportadoRetorna405() throws Exception {
+        mockMvc.perform(post("/api/despesas/total"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.status").value(405));
+
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void rotaInexistenteRetorna404NoFormatoErroResposta() throws Exception {
+        mockMvc.perform(get("/api/inexistente"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.mensagem").isNotEmpty())
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+
+        verifyNoInteractions(service);
     }
 
     @Test
