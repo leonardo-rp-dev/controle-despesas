@@ -103,7 +103,7 @@ class DespesaControllerTest {
 
     @Test
     void errosInesperadosRetornam500SemExporDetalhes() throws Exception {
-        when(service.listar()).thenThrow(new IllegalStateException("detalhe interno"));
+        when(service.listar(null)).thenThrow(new IllegalStateException("detalhe interno"));
 
         mockMvc.perform(get("/api/despesas"))
                 .andExpect(status().isInternalServerError())
@@ -113,7 +113,7 @@ class DespesaControllerTest {
 
     @Test
     void getRetorna200ComAListaNaOrdemDoService() throws Exception {
-        when(service.listar()).thenReturn(List.of(
+        when(service.listar(null)).thenReturn(List.of(
                 new DespesaResponse(2L, "Aluguel", new BigDecimal("1500.00"), LocalDate.of(2026, 10, 15)),
                 new DespesaResponse(1L, "Mercado", new BigDecimal("12.34"), LocalDate.of(2026, 9, 1))));
 
@@ -198,7 +198,7 @@ class DespesaControllerTest {
 
     @Test
     void getRetorna200ComListaVaziaQuandoNaoHaDespesas() throws Exception {
-        when(service.listar()).thenReturn(List.of());
+        when(service.listar(null)).thenReturn(List.of());
 
         mockMvc.perform(get("/api/despesas"))
                 .andExpect(status().isOk())

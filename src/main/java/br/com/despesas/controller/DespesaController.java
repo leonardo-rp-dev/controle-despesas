@@ -11,10 +11,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import br.com.despesas.dto.DespesaRequest;
 import br.com.despesas.dto.DespesaResponse;
+import br.com.despesas.dto.TotalResponse;
 import br.com.despesas.service.DespesaService;
 
 @RestController
@@ -34,8 +36,13 @@ public class DespesaController {
     }
 
     @GetMapping
-    public List<DespesaResponse> listar() {
-        return service.listar();
+    public List<DespesaResponse> listar(@RequestParam(required = false) String mes) {
+        return service.listar(mes);
+    }
+
+    @GetMapping("/total")
+    public TotalResponse total(@RequestParam(required = false) String mes) {
+        return service.total(mes);
     }
 
     @PutMapping("/{id}")
