@@ -1,13 +1,17 @@
 package br.com.despesas.service;
 
 import java.math.BigDecimal;
+import java.time.YearMonth;
+import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.despesas.dto.DespesaRequest;
 import br.com.despesas.dto.DespesaResponse;
+import br.com.despesas.dto.TotalResponse;
 import br.com.despesas.exception.NaoEncontradoException;
 import br.com.despesas.exception.ValidacaoException;
 import br.com.despesas.model.Despesa;
@@ -49,9 +53,38 @@ public class DespesaService {
     }
 
     public List<DespesaResponse> listar() {
-        return repository.findAllByOrderByDataDescIdDesc().stream()
+        return listar(null);
+    }
+
+    public List<DespesaResponse> listar(String mes) {
+        List<Despesa> despesas = lerMes(mes)
+                .map(periodo -> repository.findByDataBetweenOrderByDataDescIdDesc(
+                        periodo.atDay(1), periodo.atEndOfMonth()))
+                .orElseGet(repository::findAllByOrderByDataDescIdDesc);
+
+        return despesas.stream()
                 .map(this::paraResponse)
                 .toList();
+    }
+
+    public TotalResponse total(String mes) {
+        long centavos = lerMes(mes)
+                .map(periodo -> repository.somarValorCentavosPorPeriodo(
+                        periodo.atDay(1), periodo.atEndOfMonth()))
+                .orElseGet(repository::somarValorCentavos);
+
+        return new TotalResponse(paraReais(centavos));
+    }
+
+    private Optional<YearMonth> lerMes(String mes) {
+        if (mes == null || mes.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(YearMonth.parse(mes.trim()));
+        } catch (DateTimeParseException e) {
+            throw new ValidacaoException("Mês inválido. Use o formato yyyy-MM");
+        }
     }
 
     private Despesa buscar(Long id) {
