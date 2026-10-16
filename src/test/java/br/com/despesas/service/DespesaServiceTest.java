@@ -145,7 +145,7 @@ class DespesaServiceTest {
         Despesa antiga = despesa(1L, "Mercado", 1234L, LocalDate.of(2026, 9, 1));
         when(repository.findAllByOrderByDataDescIdDesc()).thenReturn(List.of(recente, antiga));
 
-        List<DespesaResponse> lista = service.listar();
+        List<DespesaResponse> lista = service.listar(null);
 
         assertThat(lista).extracting(DespesaResponse::id).containsExactly(2L, 1L);
         assertThat(lista.get(0).valor()).isEqualByComparingTo("1500.00");
@@ -156,7 +156,7 @@ class DespesaServiceTest {
     void listaVaziaQuandoNaoHaDespesas() {
         when(repository.findAllByOrderByDataDescIdDesc()).thenReturn(List.of());
 
-        assertThat(service.listar()).isEmpty();
+        assertThat(service.listar(null)).isEmpty();
     }
 
     @Test
