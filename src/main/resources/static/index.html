@@ -41,8 +41,20 @@
 
         <section aria-labelledby="titulo-lista">
             <h2 id="titulo-lista">Despesas</h2>
-            <p x-show="carregando">Carregando...</p>
-            <p x-show="!carregando && lista.length === 0 && !erroLista">Nenhuma despesa cadastrada.</p>
+            <div class="filtro">
+                <label>
+                    Mês
+                    <input type="month" x-model="mes" @change="carregar()">
+                </label>
+                <button type="button" class="secundario" x-show="mes !== ''" @click="limparFiltro()">Limpar filtro</button>
+            </div>
+            <p class="total">
+                <span x-text="rotuloTotal()"></span>:
+                <strong x-text="total !== null ? formatarValor(total) : '-'"></strong>
+            </p>
+            <p x-show="carregando && lista.length === 0">Carregando...</p>
+            <p x-show="!carregando && lista.length === 0 && !erroLista && mes !== ''">Nenhuma despesa neste mês.</p>
+            <p x-show="!carregando && lista.length === 0 && !erroLista && mes === ''">Nenhuma despesa cadastrada.</p>
             <p class="erro" role="alert" x-show="erroLista" x-text="erroLista"></p>
             <ul class="lista">
                 <template x-for="d in lista" :key="d.id">
