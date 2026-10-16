@@ -12,6 +12,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 
@@ -25,6 +26,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ValidacaoException.class)
     public ResponseEntity<ErroResposta> tratarValidacao(ValidacaoException e) {
         return resposta(HttpStatus.BAD_REQUEST, e.getMessage());
+    }
+
+    @ExceptionHandler(NaoEncontradoException.class)
+    public ResponseEntity<ErroResposta> tratarNaoEncontrado(NaoEncontradoException e) {
+        return resposta(HttpStatus.NOT_FOUND, e.getMessage());
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErroResposta> tratarIdentificadorInvalido(MethodArgumentTypeMismatchException e) {
+        return resposta(HttpStatus.BAD_REQUEST, "Identificador inválido");
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
