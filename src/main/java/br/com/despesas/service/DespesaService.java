@@ -4,9 +4,11 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import br.com.despesas.dto.DespesaRequest;
 import br.com.despesas.dto.DespesaResponse;
+import br.com.despesas.exception.NaoEncontradoException;
 import br.com.despesas.exception.ValidacaoException;
 import br.com.despesas.model.Despesa;
 import br.com.despesas.repository.DespesaRepository;
@@ -27,17 +29,40 @@ public class DespesaService {
         validar(request);
 
         Despesa despesa = new Despesa();
-        despesa.setDescricao(request.descricao().trim());
-        despesa.setValorCentavos(paraCentavos(request.valor()));
-        despesa.setData(request.data());
+        preencher(despesa, request);
 
         return paraResponse(repository.save(despesa));
+    }
+
+    @Transactional
+    public DespesaResponse atualizar(Long id, DespesaRequest request) {
+        Despesa despesa = buscar(id);
+        validar(request);
+        preencher(despesa, request);
+
+        return paraResponse(repository.save(despesa));
+    }
+
+    @Transactional
+    public void excluir(Long id) {
+        repository.delete(buscar(id));
     }
 
     public List<DespesaResponse> listar() {
         return repository.findAllByOrderByDataDescIdDesc().stream()
                 .map(this::paraResponse)
                 .toList();
+    }
+
+    private Despesa buscar(Long id) {
+        return repository.findById(id)
+                .orElseThrow(() -> new NaoEncontradoException("Despesa não encontrada"));
+    }
+
+    private void preencher(Despesa despesa, DespesaRequest request) {
+        despesa.setDescricao(request.descricao().trim());
+        despesa.setValorCentavos(paraCentavos(request.valor()));
+        despesa.setData(request.data());
     }
 
     private void validar(DespesaRequest request) {
