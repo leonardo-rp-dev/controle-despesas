@@ -14,6 +14,8 @@ function formularioVazio() {
 function despesas() {
     return {
         lista: [],
+        total: null,
+        mes: '',
         form: formularioVazio(),
         editandoId: null,
         excluindoId: null,
@@ -21,21 +23,52 @@ function despesas() {
         erroLista: '',
         carregando: false,
         salvando: false,
+        requisicao: 0,
 
+        // Lista e total vêm sempre do servidor, com o mesmo filtro de mês
         async carregar() {
+            const atual = ++this.requisicao;
+            const consulta = this.mes ? '?mes=' + encodeURIComponent(this.mes) : '';
             this.carregando = true;
             this.erroLista = '';
             try {
-                const res = await fetch('/api/despesas');
-                if (!res.ok) {
-                    throw await this.erroDaResposta(res);
+                const [resLista, resTotal] = await Promise.all([
+                    fetch('/api/despesas' + consulta),
+                    fetch('/api/despesas/total' + consulta)
+                ]);
+                if (!resLista.ok) {
+                    throw await this.erroDaResposta(resLista);
                 }
-                this.lista = await res.json();
+                if (!resTotal.ok) {
+                    throw await this.erroDaResposta(resTotal);
+                }
+                const lista = await resLista.json();
+                const total = (await resTotal.json()).total;
+                if (atual !== this.requisicao) {
+                    return;
+                }
+                this.lista = lista;
+                this.total = total;
             } catch (e) {
+                if (atual !== this.requisicao) {
+                    return;
+                }
                 this.erroLista = this.mensagemDaFalha(e);
+                if (e.status === 400) {
+                    // Filtro rejeitado: não mostra dados de outro filtro
+                    this.lista = [];
+                    this.total = null;
+                }
             } finally {
-                this.carregando = false;
+                if (atual === this.requisicao) {
+                    this.carregando = false;
+                }
             }
+        },
+
+        limparFiltro() {
+            this.mes = '';
+            return this.carregar();
         },
 
         async salvar() {
@@ -51,17 +84,13 @@ function despesas() {
                 if (!res.ok) {
                     throw await this.erroDaResposta(res);
                 }
-                const despesa = await res.json();
-                if (editando) {
-                    this.lista = this.lista.filter(d => d.id !== despesa.id);
-                }
-                this.inserir(despesa);
                 if (editando) {
                     this.cancelar();
                 } else {
                     this.form.descricao = '';
                     this.form.valor = '';
                 }
+                await this.carregar();
             } catch (e) {
                 this.erro = this.mensagemDaFalha(e);
                 if (editando && e.status === 404) {
@@ -102,10 +131,10 @@ function despesas() {
                 if (!res.ok) {
                     throw await this.erroDaResposta(res);
                 }
-                this.lista = this.lista.filter(d => d.id !== despesa.id);
                 if (this.editandoId === despesa.id) {
                     this.cancelar();
                 }
+                await this.carregar();
             } catch (e) {
                 const mensagem = this.mensagemDaFalha(e);
                 if (e.status === 404) {
@@ -131,11 +160,6 @@ function despesas() {
             };
         },
 
-        inserir(despesa) {
-            this.lista.push(despesa);
-            this.lista.sort((a, b) => b.data.localeCompare(a.data) || b.id - a.id);
-        },
-
         // Erro com a mensagem da API e o status HTTP, para tratar casos como o 404
         async erroDaResposta(res) {
             let mensagem = 'Erro ao processar a requisição (HTTP ' + res.status + ')';
@@ -156,6 +180,10 @@ function despesas() {
             return e instanceof TypeError ? 'Não foi possível conectar ao servidor' : e.message;
         },
 
+        rotuloTotal() {
+            return this.mes ? 'Total de ' + this.formatarMes(this.mes) : 'Total de todas as despesas';
+        },
+
         formatarValor(valor) {
             return formatadorMoeda.format(valor);
         },
@@ -163,6 +191,11 @@ function despesas() {
         formatarData(iso) {
             const [ano, mes, dia] = iso.split('-');
             return dia + '/' + mes + '/' + ano;
+        },
+
+        formatarMes(iso) {
+            const partes = iso.split('-');
+            return partes.length === 2 ? partes[1] + '/' + partes[0] : iso;
         }
     };
 }

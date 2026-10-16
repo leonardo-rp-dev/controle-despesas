@@ -95,6 +95,23 @@ button.perigo {
     outline: 2px solid #2563eb;
 }
 
+.filtro {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.5rem;
+}
+
+.filtro label {
+    flex: 1 1 10rem;
+}
+
+.total {
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    background: #fff;
+}
+
 .erro {
     color: #b91c1c;
 }
