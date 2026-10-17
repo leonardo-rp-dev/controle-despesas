@@ -16,6 +16,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
@@ -144,7 +145,7 @@ class DespesaServiceTest {
         Despesa antiga = despesa(1L, "Mercado", 1234L, LocalDate.of(2026, 9, 1));
         when(repository.findAllByOrderByDataDescIdDesc()).thenReturn(List.of(recente, antiga));
 
-        List<DespesaResponse> lista = service.listar();
+        List<DespesaResponse> lista = service.listar(null);
 
         assertThat(lista).extracting(DespesaResponse::id).containsExactly(2L, 1L);
         assertThat(lista.get(0).valor()).isEqualByComparingTo("1500.00");
@@ -155,7 +156,7 @@ class DespesaServiceTest {
     void listaVaziaQuandoNaoHaDespesas() {
         when(repository.findAllByOrderByDataDescIdDesc()).thenReturn(List.of());
 
-        assertThat(service.listar()).isEmpty();
+        assertThat(service.listar(null)).isEmpty();
     }
 
     @Test
@@ -310,6 +311,152 @@ class DespesaServiceTest {
                 .isInstanceOf(ValidacaoException.class)
                 .hasMessage("Mês inválido. Use o formato yyyy-MM");
         verifyNoInteractions(repository);
+    }
+
+    @Test
+    void cadastraDescricaoSemEspacosNasPontas() {
+        when(repository.save(any(Despesa.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.cadastrar(new DespesaRequest("  Mercado  ", BigDecimal.ONE, DATA));
+
+        ArgumentCaptor<Despesa> salva = ArgumentCaptor.forClass(Despesa.class);
+        verify(repository).save(salva.capture());
+        assertThat(salva.getValue().getDescricao()).isEqualTo("Mercado");
+    }
+
+    @Test
+    void espacosNasPontasNaoContamParaOLimiteDe200Caracteres() {
+        when(repository.save(any(Despesa.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        DespesaResponse resposta = service.cadastrar(
+                new DespesaRequest("  " + "a".repeat(200) + "  ", BigDecimal.ONE, DATA));
+
+        assertThat(resposta.descricao()).hasSize(200);
+    }
+
+    @Test
+    void rejeitaDescricaoComMaisDe200CaracteresMesmoAposRemoverEspacos() {
+        assertRejeitada(new DespesaRequest("  " + "a".repeat(201) + "  ", BigDecimal.ONE, DATA),
+                "Descrição deve ter no máximo 200 caracteres");
+    }
+
+    @Test
+    void aceitaValorMinimoDeUmCentavo() {
+        when(repository.save(any(Despesa.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        DespesaResponse resposta = service.cadastrar(
+                new DespesaRequest("Bala", new BigDecimal("0.01"), DATA));
+
+        ArgumentCaptor<Despesa> salva = ArgumentCaptor.forClass(Despesa.class);
+        verify(repository).save(salva.capture());
+        assertThat(salva.getValue().getValorCentavos()).isEqualTo(1L);
+        assertThat(resposta.valor()).isEqualTo(new BigDecimal("0.01"));
+    }
+
+    @Test
+    void rejeitaValorMenorQueUmCentavo() {
+        assertRejeitada(new DespesaRequest("Mercado", new BigDecimal("0.001"), DATA),
+                "Valor deve ter no máximo duas casas decimais");
+    }
+
+    @Test
+    void converteValorInteiroSemCasasParaCentavos() {
+        when(repository.save(any(Despesa.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        DespesaResponse resposta = service.cadastrar(
+                new DespesaRequest("Aluguel", new BigDecimal("1500"), DATA));
+
+        ArgumentCaptor<Despesa> salva = ArgumentCaptor.forClass(Despesa.class);
+        verify(repository).save(salva.capture());
+        assertThat(salva.getValue().getValorCentavos()).isEqualTo(150000L);
+        assertThat(resposta.valor()).isEqualTo(new BigDecimal("1500.00"));
+    }
+
+    @Test
+    void aceitaOMaiorValorQueCabeEmCentavos() {
+        when(repository.save(any(Despesa.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.cadastrar(new DespesaRequest("Limite", new BigDecimal("92233720368547758.07"), DATA));
+
+        ArgumentCaptor<Despesa> salva = ArgumentCaptor.forClass(Despesa.class);
+        verify(repository).save(salva.capture());
+        assertThat(salva.getValue().getValorCentavos()).isEqualTo(Long.MAX_VALUE);
+    }
+
+    @Test
+    void rejeitaValorUmCentavoAcimaDoLimiteDeCentavos() {
+        assertRejeitada(new DespesaRequest("Limite", new BigDecimal("92233720368547758.08"), DATA),
+                "Valor acima do limite permitido");
+    }
+
+    @Test
+    void rejeitaCorpoNuloNoCadastro() {
+        assertRejeitada(null, "Corpo da requisição ausente");
+    }
+
+    @Test
+    void atualizarRejeitaCorpoNulo() {
+        assertAtualizacaoRejeitada(null, "Corpo da requisição ausente");
+    }
+
+    @Test
+    void atualizarRejeitaDescricaoComMaisDe200Caracteres() {
+        assertAtualizacaoRejeitada(new DespesaRequest("a".repeat(201), BigDecimal.ONE, DATA),
+                "Descrição deve ter no máximo 200 caracteres");
+    }
+
+    @Test
+    void atualizarRejeitaValorZero() {
+        assertAtualizacaoRejeitada(new DespesaRequest("Mercado", BigDecimal.ZERO, DATA),
+                "Valor deve ser maior que zero");
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "2026-01, 2026-01-31",
+            "2026-04, 2026-04-30",
+            "2026-12, 2026-12-31",
+            "2027-02, 2027-02-28"
+    })
+    void listaComMesUsaOUltimoDiaCorretoDoMes(String mes, LocalDate ultimoDia) {
+        LocalDate primeiroDia = ultimoDia.withDayOfMonth(1);
+        when(repository.findByDataBetweenOrderByDataDescIdDesc(primeiroDia, ultimoDia)).thenReturn(List.of());
+
+        assertThat(service.listar(mes)).isEmpty();
+
+        verify(repository).findByDataBetweenOrderByDataDescIdDesc(primeiroDia, ultimoDia);
+    }
+
+    @Test
+    void listaComMesIgnoraEspacosNasPontas() {
+        when(repository.findByDataBetweenOrderByDataDescIdDesc(LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31)))
+                .thenReturn(List.of());
+
+        assertThat(service.listar(" 2026-10 ")).isEmpty();
+
+        verify(repository, never()).findAllByOrderByDataDescIdDesc();
+    }
+
+    @Test
+    void totalComMesIgnoraEspacosNasPontas() {
+        when(repository.somarValorCentavosPorPeriodo(LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31)))
+                .thenReturn(500L);
+
+        assertThat(service.total(" 2026-10 ").total()).isEqualTo(new BigDecimal("5.00"));
+    }
+
+    @Test
+    void totalDeTrintaCentavosEExatoSemErroDePontoFlutuante() {
+        when(repository.somarValorCentavos()).thenReturn(30L);
+
+        assertThat(service.total(null).total()).isEqualTo(new BigDecimal("0.30"));
+    }
+
+    @Test
+    void totalDeUmCentavoDevolveZeroVirgulaZeroUm() {
+        when(repository.somarValorCentavos()).thenReturn(1L);
+
+        assertThat(service.total(null).total()).isEqualTo(new BigDecimal("0.01"));
     }
 
     private void assertAtualizacaoRejeitada(DespesaRequest request, String mensagem) {
